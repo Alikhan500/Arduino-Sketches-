@@ -1,13 +1,22 @@
-
+/*
 ***WORK IN PROGRESS ***
 ***MAKING A MODULAR SYSTEM FOR D.I.Y. GREENHOUSE
 **i WILL improve it as i learn more :)
 
 
-/* Arduino Nano Thermostat v1.0 using a thermistor and an oled display
+ Arduino Nano Thermostat v1.0 using a thermistor and an oled display
 ***made by Alikhan from Pakistan :) 
-***by using parts of sketches made by "youtube user Kelton bailey" and "Adafruit tutorial for using a thermistor" (links below)
+***by using parts of sketches made by
+
+*1.http://arduino-er.blogspot.com/2015/05/temperature-humidity-monitor-using.html
+ 
+ 2."Adafruit tutorial for using a thermistor" (links below)
+ 
+ 
+ 3. Wiring learned from "youtube user Kelton bailey" and "Adafruit tutorial for using a thermistor" (links below)
+
 **nano+oled+dht tutorial :        https://www.youtube.com/watch?v=bZKlVzwHiGY
+
 **adafruit thermistor tutorial :  https://learn.adafruit.com/thermistor/using-a-thermistor
   
  **PARTS required (for this sketch to work as it is ) 
@@ -26,6 +35,8 @@
   6.breadboard and jumper wires 
   
   7. wiring shown in the tutorials 
+  
+  */
   
   
   //TEMPERATURE "CONTROL PARAMETERS"                                          always wanted to say it too :)
