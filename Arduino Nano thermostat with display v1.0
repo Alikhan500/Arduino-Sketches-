@@ -45,7 +45,7 @@
 #define Tmax 25            // Set temperature maximum point at which Cooler pin will turn ON
 #define setT 20            // Set temperature  point at which heater and cooler will turn OFF
 #define Tmin 15            //  Set temperature minimum  point at which Heater pin will turn on 
- 
+
 int cooler = 12;           // Set Led or Relay Pin change it to whatever digital pin is connected to Led or relay
 int heater = 3 ;
 
@@ -156,6 +156,7 @@ void loop(void) {
    digitalWrite(cooler, HIGH);
    digitalWrite(heater,LOW);
    Serial.print("TEMPERATURE HIGH"); // PRINT HIGH IN SERIAL MONITOR
+   
   }
  
   
@@ -186,6 +187,35 @@ void loop(void) {
     u8g.setFont(u8g_font_helvB08);    // set font for oled display
     
    
+   
+   
+   if (steinhart >=Tmax)            //conditions for showing status in the first line (high ,upper range ,normal range,low )
+   {
+    u8g.drawFrame(0,0,128,20);  
+    u8g.drawStr( 7, 14, "*HIGH TEMPERATURE*");
+   
+   }
+   if (steinhart <=Tmax && steinhart >=setT)
+    
+   { u8g.drawFrame(0,0,128,20);  
+     u8g.drawStr( 15, 14, "*IN UPPER RANGE*");
+   }
+   
+   if
+     (steinhart <=setT && steinhart >Tmin)
+    
+   {u8g.drawFrame(0,0,128,20);   
+    u8g.drawStr( 4, 14, "> > NORMAL RANGE < <");
+   }
+   if 
+   (steinhart <=Tmin)
+    
+   { u8g.drawFrame(0,0,128,20);  
+    u8g.drawStr( 7, 14, "*LOW TEMPERATURE*"); 
+   }   
+    
+    
+    
     
     
     u8g.drawStr( 0, 33, "Temperature:");    // first digit is screen coordinate for X-axis and second for Y-axis 
