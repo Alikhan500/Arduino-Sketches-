@@ -35,14 +35,14 @@
 #define setT 20            // Set temperature  point at which heater and cooler will turn OFF
 #define Tmin 15            //  Set temperature minimum  point at which Heater pin will turn on 
  
-int cooler = 12;           // Set Led or Relay Pin
+int cooler = 12;           // Set Led or Relay Pin change it to whatever digital pin is connected to Led or relay
 int heater = 3 ;
 
 
   //THERMISTOR SETTINGS
 
 
-#define THERMISTORPIN A0          // which analog pin to connect        
+#define THERMISTORPIN A0          // which analog pin to connect to thermistor and the resistor "joint"       
 
 #define THERMISTORNOMINAL 9000    // resistance at 25 degrees C     
 
@@ -52,7 +52,7 @@ int heater = 3 ;
 
 #define BCOEFFICIENT 3000  // The beta coefficient of the thermistor (usually 3000-4000)
 
-#define SERIESRESISTOR 9700 // the value of the 'other' resistor   
+#define SERIESRESISTOR 9700 // the value of the 'other' resistor  should be close to equal to the thermistors nominal value 
 
 
 int samples[NUMSAMPLES];
