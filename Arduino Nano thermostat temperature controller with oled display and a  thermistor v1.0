@@ -77,7 +77,7 @@ int samples[NUMSAMPLES];
 
 U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SW SPI Com: SCK = 13, MOSI = 11, CS = 10, A0 = 9 // OLED "constructor" and pins info. 
 
-char str[10]; // i don't know what this line is for...yet :)
+char str[10]; // character strings something i dont understand yet :)
 
       
       
