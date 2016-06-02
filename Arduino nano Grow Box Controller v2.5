@@ -36,10 +36,10 @@
 
   5. DHT 22
  
-  6.RELAY MODULE LOW LEVEL TRIGGER TYPE
+  6.RELAY MODULE LOW LEVEL TRIGGER TYPE (5 Relays required in total for all the pins, can be seperate )
 
-  7. DS3231 RTC MODULE   (RESISTOR from charging circuit REMOVED and charging DISABLED...WITH CR2032 CELL INSERTED
-
+  7. DS3231 RTC MODULE   (RESISTOR from charging circuit REMOVED and charging DISABLED...WITH CR2032(NON-rechargable)Cell
+  
   8. AN LED WITH APPROPRIATE RESISTOR FOR USING AS A STATUS LED
 
   */
@@ -49,20 +49,20 @@
 
 
 //**********************//**********************//**********************
-//TEMPERATURE and HUMIDITY "CONTROL PARAMETERS"                                          always wanted to say it too :)
+//TEMPERATURE and HUMIDITY "CONTROL PARAMETERS"                                         
 //**********************//**********************//**********************
 
+//Default Temperature and Humidity Settings
 
-
-int Tmax   =   29 ;          // Set temperature Maximum point at which "Cooler" pin will turn ON
+int Tmax   =   29 ;          // Set temperature Maximum point at which "Cooler"  will turn ON
 int setT   =   25 ;         // Set temperature  point at which "heater" and "cooler" will turn OFF
-int Tmin   =   19 ;         //  Set temperature Minimum  point at which Heater pin will turn ON
-int setHmx =   80 ;          // set humidity max at which "bigfan" pin will turn ON
-int setHnr =   65 ;         // Set humidity normal at which "bigfan" pin and "spray" pin will turn OFF
-int setHlw =   55 ;          // Set humidity low at which "spray pin will turn ON
+int Tmin   =   19 ;         //  Set temperature Minimum  point at which Heater will turn ON
+int setHmx =   80 ;          // set humidity max at which "bigfan"  will turn ON
+int setHnr =   65 ;         // Set humidity normal at which "bigfan"  and "spray"  will turn OFF
+int setHlw =   55 ;          // Set humidity low at which "spray  will turn ON
 
 
-
+// Seperate Temperature and Humidity Settings for Day and Night time can be done by Alarms function belowwww
 //********* SET TIME FOR LIGHT ONE TO TURN ON AND OFF FROM WITHIN THE LOOP FROM THE "IF" STATEMENT AND ALARMS BELOW
 
 
@@ -71,14 +71,23 @@ int setHlw =   55 ;          // Set humidity low at which "spray pin will turn O
 //**********************//**********************//**********************
 //        PINS AND CONNECTIONS
 //**********************//**********************//**********************
+// Five pins used in total which have to be connected to five relays(optically isolated for eliminating interference)
+// usually a 4 Relay board is available so it can be used as only one of the pins for Heater/Cooler 
+// and they can be swapped according to the outdoor temperature in different seasons
+//Ground of Relay Board and Arduino Board should be common for relays to work
+//LOW-level Relay board will trigger the relay when the trigger pin is LOW/off/grounded
+//so when something has to be turned ON the trigger pin will become LOW otherwise it will stay HIGH (as.a.mf.) all the time 
+//that thing is OFF :)
 
-const byte Bigfan   =  4 ;       // Bigfan pin turns on at high humidity 
-const byte cooler   =  5 ;       // Cooler pin turn on at high temp (T1 from DHT)
-const byte spray    =  6 ;       // Spray pin turns on at low humidity
-const byte lightone =  7 ;       // Main Lights(for plants) Pin
+const byte Bigfan   =  4 ;       // Bigfan  turns on at high humidity 
+const byte cooler   =  5 ;       // Cooler  turn on at high temp (T1 from DHT)
+const byte spray    =  6 ;       // Spray  turns on at low humidity
+const byte lightone =  7 ;       // Main Lights(for plants) 
 
-const byte heater   =  8 ;       // Heater pin turns ON at low temp (T1 from DHT)
-const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is running when oled is turned OFF...blinks every ten second (change ten second timer)
+const byte heater   =  8 ;       // Heater  turns ON at low temp (T1 from DHT)
+const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is running when oled is turned OFF...
+                                 //i turn it off by removing two jumper wires manually 
+                                 //blinks every ten second (change ten second timer)
 
 // ******** THERMISTOR AND DHT PINS BELOW *******
 
@@ -118,8 +127,9 @@ const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is r
 #include <Wire.h>  // I2C
 #include <Time.h>  // Time Manipulation
 #include <DS1307RTC.h>  // DS1307 RTC
-#include <TimeAlarms.h> // time alarm library //Changed Number of  alarms " dtNBR_ALARMS to 30 ""BY EDITING TIMEALARM.H FILE IN LIBRARIES FOLDER.
-//increasing this number increases size of the sketch
+#include <TimeAlarms.h> // time alarm library //Changed Number of  alarms " dtNBR_ALARMS to 30 "
+                        //"BY EDITING TIMEALARM.H FILE IN LIBRARIES FOLDER.
+                        //increasing this number increases size of the sketch too
 
 
 
@@ -129,7 +139,7 @@ const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is r
 
 
 
-//********************************************************  D H T 22 ***************************************************************************
+//********************************************************  D H T 22 and pin ***************************************************************************
 #define DHTPIN A1     // what pin we're connected to
 
 
@@ -148,8 +158,9 @@ DHT dht(DHTPIN, DHTTYPE, 6);
 //**********************//**********************//**********************
 
 char timebuf[10];  // Time
-//char datebuf[10];  // Date
-//int year2digit;  // 2 digit year
+//char datebuf[10];  // Date            //un comment for using/displaying date with time 
+//int year2digit;  // 2 digit year      // necessary for Date Specific Alarms 
+                                        // for example trigering a water pump relay for watering the plants
 
 char str[10];
 
@@ -169,15 +180,17 @@ U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SW SPI Com: SCK = 13, MOSI = 11, CS 
 //**********************//**********************//**********************//**********************//**********************//**********************
 
 void setup(void) {
-
+  
+  // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM 
  
-  digitalWrite(Bigfan,HIGH);       // When using "LOW level trigger" type Relay module, turning a pin "HIGH" will turn the relay "OFF" and turning the pin "LOW" turns the relay "ON"
-  digitalWrite(cooler,HIGH);       // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM 
+  digitalWrite(Bigfan,HIGH);    // When using "LOW level trigger" type Relay module, turning a pin "HIGH" will
+  digitalWrite(cooler,HIGH);    // turn the relay "OFF" and turning the pin "LOW" turns the relay "ON"    
   digitalWrite(heater,HIGH);
   digitalWrite(spray,HIGH);
   digitalWrite (lightone,HIGH);
   
-  analogReference(EXTERNAL);   // AREF connected to 3.3 ON BOARD for accuracy of thermistor (adafruit using a thermistor tutorial )
+  analogReference(EXTERNAL);   // AREF connected to 3.3 ON BOARD for accuracy of thermistor 
+                               //(go to adafruit using a thermistor tutorial )
 
 
 
@@ -192,7 +205,7 @@ void setup(void) {
     u8g.drawFrame(0, 0, 128, 64);
     u8g.drawStr(15, 25, "Grow Box 2.5");
     u8g.drawStr( 16, 40, "Controller");
-    u8g.drawStr(30, 56, "Made by:AMK");
+    u8g.drawStr(30, 56, "Made by:AMK");                    // go ahead :) Put your name here 
 
   }
 
@@ -221,8 +234,11 @@ void setup(void) {
   }
 
   //***********************//**********************
-  //       FOR SETTING RTC'S TIME MANNUALY>>>> UNCOMMENT>>EDIT THE TIME TO BE SET>>>UPLOAD>>COMMENT IT OUT AGAIN>> UPLOAD AGAIN
-  //***********************//**********************
+  //       FOR SETTING RTC'S TIME MANNUALY>>>> 1-UN-COMMENT line below >> 2-Edit the time to be set (no zeros before single digits)
+  //                                       >>> 3-UPLOAD  4->>COMMENT IT OUT AGAIN >> 5- UPLOAD AGAIN
+                                        
+                                       
+  //*****Remove "//" below to SET time ******************//**********************
 
 
   // setTime(8,29,0,1,1,11); // set time to Saturday 8:29:00am Jan 1 2011 NO ZEROS BEFORE ...IN CASE OF SINGLE DIGITS  
@@ -257,7 +273,9 @@ void setup(void) {
 
 
 
-  Alarm.timerRepeat(10, Repeats);            // timer for every 10 seconds blinking LIGHT TWO
+  Alarm.timerRepeat(10, Repeats);            // timer for every 10 seconds blinking LIGHT TWO (status LED) it blinks only when the
+                                             // loop is running normally 
+                                             
 
 
 }
@@ -310,7 +328,7 @@ void loop(void) {
 
 
  // digitalClockDisplay();      //Update the Clock Display IN SERAL MONITOR
-
+                                // this calls the function digitalCloclDisplay at the end
  
   
   
@@ -327,17 +345,13 @@ void loop(void) {
   
   //  if the number of hour,min. or sec. is less than 10 DON'T use "0" here
 
+//**********************************************************************************************************************************************************
 
-
-
-
-
-
-//  *********************************************************************************************************************************************************
-
-// This if statement will make sure that the light one (for plants) stays ON after reset or power down power up cycle  
-// because Alarms will trigger on a given time and will turn the pin high but if after the alarm is triggred there is a reset the pin will turn off untill next alarm that turns it ON again 
-// which can interupt light period of plants  So, this line makes sure that LIGHTS turn ON immediately after reset during  the LIGHT period for plants
+// This if statement will make sure that the light one (for plants) stays ON after reset or power down/up cycle  
+// because Alarms will trigger on a given time and will turn the pin high but if after the alarm is triggred
+// there is a reset the pin will turn off untill next alarm that turns it ON again 
+// which can interupt photoperiod foo plants  So, this line makes sure that LIGHTS turn ON immediately after reset 
+//during  the LIGHT period for plants
 
 
 if (hour() >=3 && hour () <=20 )                          // Match current time (Hour only) to "set time" to make sure light one "" stays ON after reset""
@@ -345,19 +359,23 @@ if (hour() >=3 && hour () <=20 )                          // Match current time 
   digitalWrite(lightone,LOW);                             // Lightone will stay ON from 3:00:00 AM to 08:59:59 PM as the hour 
                                                           // will remain the same for 59 minutes and 59 seconds after the set hour
                                                           // LOW will trigger the relay ON as the relay type is low level
+                                                          
+  // Lights will turn OFF 1. From Alarams and Alarm OFF function and by writing the pin HIGH at off time
+  //                      2. If there is a "reset" and the light time has passed as set in the statement if statement
+  //                         Above,the relays remain off but alarm  off time should be set in Alarms function                                                         
 }
 //*************************************************************************************************************************************************************
 // ************************************************************************************************************************************************************
   //    DAILY TIMED ALARMS THAT TRIGGER ON SPECIFIED TIMES
 
- // these alarms will trigger once and will do stuff mentioned in the alarm functions at the end of the loop
+ // these alarms will trigger once and will do "stuff" mentioned in the alarm functions at the end of the loop
 
 // ***********************************************************************************************************************************************************
   Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1             for example // for trigerring an alarm on ""03:00:00"" in the morning
 
 
 
-  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2          or for example // for trigerring an alarm on ""04:30:00""  in the morning
+  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2          or for example // for trigerring an alarm on ""04:00:00""  in the morning
 
 
 
