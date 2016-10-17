@@ -1,7 +1,18 @@
 /*
 
 ***MAKING A MODULAR SYSTEM FOR D.I.Y. GREENHOUSE
-**i WILL improve it as i learn more :)
+
+***Independent Grow Box Controller that can be used to Control "" all the Important devices"" to maintain
+the ""Grow Enviroment"" for example Lights, Heater,Cooler,Fan for blowing air inside the box ,Fan for exaust,
+Humidfier or mist maker
+
+*** it can be used in a single small Grow Box or a Grow Room  as a single controller or a Large Grow enviroment  
+    having multiple Devices and multiple controllers all working in their respewctive areas that can be seperated or not 
+    so even if one controller or device fails it can still work because the other devices and controllers will continue 
+    to work in the same large enviroment making little to no difference in the enviroment due to failure 
+    because the priority is the plants lives which can get in danger really quickly if the enviroment is not maintained .
+    
+*****i WILL improve it as i learn more :)
 //**********************//**********************//**********************
 
 
@@ -72,7 +83,7 @@ int setHlw =   55 ;          // Set humidity low at which "spray  will turn ON
 //        PINS AND CONNECTIONS
 //**********************//**********************//**********************
 // Five pins used in total which have to be connected to five relays(optically isolated for eliminating interference)
-// usually a 4 Relay board is available so it can be used as only one of the pins for Heater/Cooler 
+// usually a 4 Relay board is available so it can be used as only one of the pins for Heater/Cooler are required  
 // and they can be swapped according to the outdoor temperature in different seasons
 //Ground of Relay Board and Arduino Board should be common for relays to work
 //LOW-level Relay board will trigger the relay when the trigger pin is LOW/off/grounded
@@ -90,6 +101,9 @@ const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is r
                                  //blinks every ten second (change ten second timer)
 
 // ******** THERMISTOR AND DHT PINS BELOW *******
+// Connect the RTC according to it's pinout (hint google rtc ds3231 pins and connections)
+
+
 
 //**********************//**********************//*********************
 //THERMISTOR PIN and SETTINGS
@@ -154,15 +168,18 @@ DHT dht(DHTPIN, DHTTYPE, 6);
 
 
 //**********************//**********************//**********************
-// MAKING CHARACTER STRING  ARRAYS
+// MAKING CHARACTER ARRAYS or C strings 
 //**********************//**********************//**********************
 
-char timebuf[10];  // Time
+char timebuf[10];  // array for Time
+
+char str[10]; // for Display
+
 //char datebuf[10];  // Date            //un comment for using/displaying date with time 
 //int year2digit;  // 2 digit year      // necessary for Date Specific Alarms 
                                         // for example trigering a water pump relay for watering the plants
-
-char str[10];
+                                        // i didn't use it as my setup currently doesn't need date
+                             
 
 
 //**********************//**********************//**********************
@@ -181,11 +198,11 @@ U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SW SPI Com: SCK = 13, MOSI = 11, CS 
 
 void setup(void) {
   
-  // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM 
+   
  
   digitalWrite(Bigfan,HIGH);    // When using "LOW level trigger" type Relay module, turning a pin "HIGH" will
   digitalWrite(cooler,HIGH);    // turn the relay "OFF" and turning the pin "LOW" turns the relay "ON"    
-  digitalWrite(heater,HIGH);
+  digitalWrite(heater,HIGH);    // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM
   digitalWrite(spray,HIGH);
   digitalWrite (lightone,HIGH);
   
@@ -215,8 +232,14 @@ void setup(void) {
   //**********************//**********************//***********************//**********************
   //Check to see if the RTC is present.if yes then Set the ARDUINO's INTERNAL clock accordingly
   //**********************//**********************//***********************//**********************
-
-
+  
+  
+  // when using timer library the Arduino's "internal clock " is used for getting "current time" 
+  // Arduino's internal clock is NOT so accurate and gets off time so we use time from RTC (which IS 
+  //accurate atleast for our use) and we sync Arduino's internal Clock with the time from RTC and we 
+  //have to do this periodically (atleast once in every 24 hrs )so our tasks can be completed according 
+  //to the correct time we can put the sync command in the Loop and Alarm Functions too 
+  
   Wire.beginTransmission(DS1307_ID);
   Wire.write((uint8_t)0x00);
 
@@ -233,9 +256,13 @@ void setup(void) {
     Serial.println("TIME SYNCHRONIZED");
   }
 
-  //***********************//**********************
-  //       FOR SETTING RTC'S TIME MANNUALY>>>> 1-UN-COMMENT line below >> 2-Edit the time to be set (no zeros before single digits)
-  //                                       >>> 3-UPLOAD  4->>COMMENT IT OUT AGAIN >> 5- UPLOAD AGAIN
+  //******************FOR SETTING RTCS TIME MANNUALY(must be done at the first time use of RTC)'*****//*********
+  //  >>>> 
+  // 1-UN-COMMENT line below >> 
+  // 2-Edit the time to be set in 24hrs later we can convert to 12h (no zeros before single digits) 
+  // 3-UPLOAD  
+  // 4-COMMENT IT OUT AGAIN 
+  // 5- UPLOAD AGAIN
                                         
                                        
   //*****Remove "//" below to SET time ******************//**********************
@@ -254,7 +281,7 @@ void setup(void) {
 
  
  
-   pinMode(Bigfan,OUTPUT);      /// set output relay pins
+   pinMode(Bigfan,OUTPUT); // set output relay pins // add more if you have more relays or pins connected to something 
    pinMode(cooler,OUTPUT);
    pinMode(heater,OUTPUT);
    pinMode(spray,OUTPUT);
@@ -267,14 +294,16 @@ void setup(void) {
   
   //***********************//**********************//***********************//**********************
 
-  //  TIMER ALARM THAT RUNS OVER AND OVER AFTER SECONDS
+  //  TIMER ALARM THAT RUNS OVER AND OVER AFTER SECONDS (used for lighttwo status led)
 
   //***********************//**********************//***********************//**********************
 
 
 
-  Alarm.timerRepeat(10, Repeats);            // timer for every 10 seconds blinking LIGHT TWO (status LED) it blinks only when the
-                                             // loop is running normally 
+  Alarm.timerRepeat(10, Repeats);   // timer for every 10 seconds blinking LIGHT TWO (status LED) it blinks only when
+                                    // loop is running normally and (below in the sketch ) if DHT sensor has problems 
+                                    //the loop stops and light two led lights up constantly indicating sensor problem
+                                    
                                              
 
 
@@ -292,7 +321,7 @@ void setup(void) {
 void Repeats() {
   //Serial.println("10 second timer");
 
-  digitalWrite(lighttwo, HIGH);       // it is also used to indicate Dht read failed and lights up continuously below in dht part
+  digitalWrite(lighttwo, HIGH); // it is also used to indicate Dht read failed and lights up continuously below in dht part
   Alarm.delay(30);
   digitalWrite(lighttwo, LOW);
 
@@ -348,29 +377,31 @@ void loop(void) {
 //**********************************************************************************************************************************************************
 
 // This if statement will make sure that the light one (for plants) stays ON after reset or power down/up cycle  
-// because Alarms will trigger on a given time and will turn the pin high but if after the alarm is triggred
+// because Alarms will trigger on a given time and will turn the pin HIGH but if after the alarm is triggred AND
 // there is a reset the pin will turn off untill next alarm that turns it ON again 
-// which can interupt photoperiod foo plants  So, this line makes sure that LIGHTS turn ON immediately after reset 
-//during  the LIGHT period for plants
+// which can interupt photoperiod for plants  So, this line makes sure that LIGHTS turn ON immediately after reset 
+// which happens DURING  the LIGHT period for plants
 
 
-if (hour() >=3 && hour () <=20 )                          // Match current time (Hour only) to "set time" to make sure light one "" stays ON after reset""
-{ Serial.println ("Lights turned ON") ;
-  digitalWrite(lightone,LOW);                             // Lightone will stay ON from 3:00:00 AM to 08:59:59 PM as the hour 
-                                                          // will remain the same for 59 minutes and 59 seconds after the set hour
-                                                          // LOW will trigger the relay ON as the relay type is low level
+if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to "set time" 
+{ Serial.println ("Lights turned ON") ;     // to make sure light one stays ON after reset
+  digitalWrite(lightone,LOW);                  // Lightone will stay ON from 3:00:00 AM to 08:59:59 PM as the hour 
+                                               // will remain the same for 59 minutes and 59 seconds after the set hour
+                                               // LOW will trigger the relay ON as the relay type is low level
                                                           
-  // Lights will turn OFF 1. From Alarams and Alarm OFF function and by writing the pin HIGH at off time
-  //                      2. If there is a "reset" and the light time has passed as set in the statement if statement
-  //                         Above,the relays remain off but alarm  off time should be set in Alarms function                                                         
+  // Lights will turn OFF 1. From Alarams(below) and calling the function  "Alarm OFF" (at the end) and by writing the pin HIGH
+                          // at off time
+                        
+  //                      2. If there is a "reset" and the light time has passed which is set in the statement (Above)
+                          //the relays remain off but "alarm  off time" MUST be set in Alarms function                                                         
 }
-//*************************************************************************************************************************************************************
-// ************************************************************************************************************************************************************
+//********************************************************************************************************************************************
+// *******************************************************************************************************************************************
   //    DAILY TIMED ALARMS THAT TRIGGER ON SPECIFIED TIMES
 
  // these alarms will trigger once and will do "stuff" mentioned in the alarm functions at the end of the loop
 
-// ***********************************************************************************************************************************************************
+// *******************************************************************************************************************************************
   Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1             for example // for trigerring an alarm on ""03:00:00"" in the morning
 
 
