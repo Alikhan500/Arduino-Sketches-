@@ -402,11 +402,11 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
  // these alarms will trigger once and will do "stuff" mentioned in the alarm functions at the end of the loop
 
 // *******************************************************************************************************************************************
-  Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1             for example // for trigerring an alarm on ""03:00:00"" in the morning
+  Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1   for example // for trigerring an alarm on ""03:00:00"" in the morning
 
 
 
-  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2          or for example // for trigerring an alarm on ""04:00:00""  in the morning
+  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2 or for example // for trigerring an alarm on ""04:00:00""  in the morning
 
 
 
@@ -514,9 +514,9 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
 
   //***********************//**********************//***********************//**********************//***********************//**********************
 
+//                        DHT 22****** TEMPERATURE HUMIDITY CALCULATIONS
 
-
-  //*************************************DHT 22****** TEMPERATURE HUMIDITY CALCULATIONS **************************************************************
+  //********************** **************************************************************
 
 
 
@@ -547,8 +547,11 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
   Serial.print(t);
   Serial.print(" *C ");*/
 
-  //***********************************
-  //****************************************************************// THERMISTOR CALCULATIONS*********************************************
+  //***************************************************************************************************************
+  
+  //                              THERMISTOR CALCULATIONS
+  
+  //***************************************************************************************************************
 
 
 
@@ -558,7 +561,7 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
   float average;
 
 
-  for (i = 0; i < NUMSAMPLES; i++) {                           // take "N" number of samples in (milivolts) in a row, with a slight delay
+  for (i = 0; i < NUMSAMPLES; i++) {        // take "N" number of samples in (milivolts) in a row, with a slight delay
     samples[i] = analogRead(THERMISTORPIN);
     Alarm.delay(10);
   }
@@ -567,7 +570,7 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
 
 
   average = 0;
-  for (i = 0; i < NUMSAMPLES; i++) {                           // average all the samples out
+  for (i = 0; i < NUMSAMPLES; i++) {        // average all the samples out
     average += samples[i];
   }
   average /= NUMSAMPLES;
@@ -576,7 +579,7 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
 
 
 
-  average = 1023 / average - 1;                               // convert the value to resistance
+  average = 1023 / average - 1;             // convert the value to resistance
   average = SERIESRESISTOR / average;
 
   //Serial.print("Thermistor resistance ");
@@ -599,7 +602,12 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
   Serial.print(steinhart);
   Serial.println(" *C");?*/
 
-  // "steinhart" is the final temperature in celcius i used it as it is below
+
+
+
+
+
+// "steinhart" is the final temperature in celcius i used it as it is below
 
 
 
@@ -610,7 +618,7 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
 
   //***********************//**********************//***********************//**********************
 
-  // CONTROL PART turning things ON and OFF according to Temperature and Humidity (THE GOOD STUFF) "ifs"
+  // CONTROL PART turning things ON and OFF according to Temperature(from DHT) and Humidity (THE GOOD STUFF) "ifs"
 
   //***********************//**********************//***********************//**********************
 
@@ -619,14 +627,16 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
   {
     digitalWrite(cooler, LOW);
 
-    digitalWrite(heater, HIGH);
+    digitalWrite(heater, HIGH);     // not required as heater is "turned OFF" below but still just to be sure :)
 
     //Serial.println("TEMPERATURE HIGH"); // PRINT HIGH IN SERIAL MONITOR
 
   }
 
 
-  if (t <= setT && t > Tmin)// TURN OFF THE COOLER WHEN TEMP GETS DOWN TO "setT" OR GOES BELOW
+  if (t <= setT && t > Tmin)       // Turn OFF the COOLER when TEMP GETS DOWN TO "setT" OR GOES BELOW
+  
+  
   { digitalWrite(cooler, HIGH);
 
 
@@ -869,21 +879,30 @@ if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to
 
 //**********************//**********************//**********************//**********************
 
-//Functions called when daily time specific alarms triggers:
+//Functions called when daily time specific alarms (above in the loop) triggers: 
 
 //***********************************************//**********************//**********************
 
 
 void ONAlarm() {
+  
+  
   //Serial.println("Alarm: - turn lights oN");
+  
   //digitalWrite(lightone, LOW );
+  
   Tmax = 29;                                 // set day time temperatures
   setT = 25;
   Tmin = 19;
+  
+  
 }
 
 
 void ON2Alarm() {
+
+
+
  // Serial.println("Alarm: - turn lights oN");
  // digitalWrite(lightone, LOW);
   setSyncProvider(RTC.get);                            //It's time, sync  the Arduino's INTERNAL Clock  to the RTC
@@ -893,26 +912,40 @@ void ON2Alarm() {
 
 
 void OFFAlarm() {
-  Serial.println("Alarm: - turn lights oFF");
+
+
+
+Serial.println("Alarm: - turn lights oFF");
   digitalWrite(lightone, HIGH);
   Tmax = 26;                                      // set night time temperatures
   setT = 23;
   Tmin = 19;
+
 }
 
 
 
 void OFF2Alarm() {
-  //Serial.println("Alarm: - turn lights oFF");
+
+
+//Serial.println("Alarm: - turn lights oFF");
   digitalWrite(lightone, HIGH);
   setSyncProvider(RTC.get);                            //It's time, sync  the Arduino's INTERNAL Clock  to the RTC
  
+
 }
+
+
+
 
 //***********************************************
 
-/*
-//Function for digital clock display: prints preceding colon and leading 0
+/*    uncomment for serial display of time 
+
+
+
+
+//Function for digital clock display (in the SERIAL MONITOR ): prints preceding colon and leading 0
 //
 
 
