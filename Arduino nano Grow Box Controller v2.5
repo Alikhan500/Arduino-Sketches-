@@ -1,987 +1,1347 @@
-/*
+ /* 
 
-***MAKING A MODULAR SYSTEM FOR D.I.Y. GREENHOUSE
+ Please Subscribe to My Youtube Channel :   Youtube.com/CrazyGuyOfficial
+                     My Blog            :   AmkDiyProjects.blogspot.com
 
-****  Compiled without any error on Arduino IDE 1.6.9 for nano board // 17-October-2016
-
-]
-
-
-*** PLEASE VISIT my Blog       https:// amkDiyProjects.Blogspot.com
-    
- ***   AND
-
-*** My   YouTube Channel       https:// youtube.com/CrazyGuyOficial      
-
-
-
-
-
-***Independent Grow Box Controller that can be used to Control "" all the Important devices"" to maintain
-the ""Grow Enviroment"" for example Lights, Heater,Cooler,Fan for blowing air inside the box ,Fan for exaust,
-Humidfier or mist maker
-
-
-
-
-
-*** it can be used in a single small Grow Box or a Grow Room  as a single controller or a Large Grow enviroment  
-    having multiple Devices and multiple controllers all working in their respewctive areas that can be seperated or not 
-    so even if one controller or device fails it can still work because the other devices and controllers will continue 
-    to work in the same large enviroment making little to no difference in the enviroment due to failure 
-    because the priority is the plants lives which can get in danger really quickly if the enviroment is not maintained .
-    
-
-
-******slow and buggy
-*****i WILL improve it as i learn more :)
-
-
-
-//**********************//**********************//**********************
-
-
-
-//**********************//**********************//**********************//**********************//**********************//**********************
-
-// Arduino Nano GrowBox Controller v 2.5 :)
-
-//**********************//**********************//**********************//**********************//**********************//**********************
-
-
-
-
-
-
-//                         ***Made by Alikhan from Pakistan :)
-
-
-*
-
-//**********************//**********************//**********************
-
-//  **PARTS required (for this sketch to work as it is )
-
-//**********************//**********************//**********************
-
-  1.Arduino Nano
-
-  2.A thermistor (i used A 10K WATERPROOF ONE)
-
-  3.A resistor (matching the value of the thermistor's "nominal resistance at 25 DEGREES C" for example: 5k resistor for 5k thermistor)
-
-  4.OLED display ssd1306  (mine is ssd1306 but got it working by using sh1106 constructor also got rid of the "white line problem")
-
-  5. DHT 22
  
-  6.RELAY MODULE LOW LEVEL TRIGGER TYPE (5 Relays required in total for all the pins, can be seperate )
 
-  7. DS3231 RTC MODULE   (RESISTOR from charging circuit REMOVED and charging DISABLED...WITH CR2032(NON-rechargable)Cell
-  
-  8. AN LED WITH APPROPRIATE RESISTOR FOR USING AS A STATUS LED
+ **************  UPDATED ON FEB 2017 *************
 
-  */
+***************  BETTER THAN BEFORE  *************
 
+ 
 
+ 
 
+ 
 
-
-//**********************//**********************//**********************
-//TEMPERATURE and HUMIDITY "CONTROL PARAMETERS"                                         
-//**********************//**********************//**********************
-
-//Default Temperature and Humidity Settings
-
-int Tmax   =   29 ;          // Set temperature Maximum point at which "Cooler"  will turn ON
-int setT   =   25 ;         // Set temperature  point at which "heater" and "cooler" will turn OFF
-int Tmin   =   19 ;         //  Set temperature Minimum  point at which Heater will turn ON
-int setHmx =   80 ;          // set humidity max at which "bigfan"  will turn ON
-int setHnr =   65 ;         // Set humidity normal at which "bigfan"  and "spray"  will turn OFF
-int setHlw =   55 ;          // Set humidity low at which "spray  will turn ON
-
-
-// Seperate Temperature and Humidity Settings for Day and Night time can be done by Alarms function belowwww
-//********* SET TIME FOR LIGHT ONE TO TURN ON AND OFF FROM WITHIN THE LOOP FROM THE "IF" STATEMENT AND ALARMS BELOW
-
-
-
-
-//**********************//**********************//**********************
-//        PINS AND CONNECTIONS
-//**********************//**********************//**********************
-// Five pins used in total which have to be connected to five relays(optically isolated for eliminating interference)
-// usually a 4 Relay board is available so it can be used as only one of the pins for Heater/Cooler are required  
-// and they can be swapped according to the outdoor temperature in different seasons
-//Ground of Relay Board and Arduino Board should be common for relays to work
-//LOW-level Relay board will trigger the relay when the trigger pin is LOW/off/grounded
-//so when something has to be turned ON the trigger pin will become LOW otherwise it will stay HIGH (as.a.mf.) all the time 
-//that thing is OFF :)
-
-const byte Bigfan   =  4 ;       // Bigfan  turns on at high humidity 
-const byte cooler   =  5 ;       // Cooler  turn on at high temp (T1 from DHT)
-const byte spray    =  6 ;       // Spray  turns on at low humidity
-const byte lightone =  7 ;       // Main Lights(for plants) 
-
-const byte heater   =  8 ;       // Heater  turns ON at low temp (T1 from DHT)
-const byte lighttwo =  3 ;       // pin for "status LED' inicating the loop is running when oled is turned OFF...
-                                 //i turn it off by removing two jumper wires manually 
-                                 //blinks every ten second (change ten second timer)
-
-// ******** THERMISTOR AND DHT PINS BELOW *******
-// Connect the RTC according to it's pinout (hint google rtc ds3231 pins and connections)
-
-
-
-//**********************//**********************//*********************
-//THERMISTOR PIN and SETTINGS
-//**********************//**********************//**********************
-
-#define THERMISTORPIN A0          // which analog pin to connect to thermistor and the resistor "joint"       
-
-
-
-
-#define THERMISTORNOMINAL 10000    // resistance at 25 degrees C     
-
-#define TEMPERATURENOMINAL 25     // temp. for nominal resistance (almost always 25 C)
-
-#define NUMSAMPLES 5    // how many samples to take and average,takes longer gets 'smooth'
-
-#define BCOEFFICIENT 3500  // The beta coefficient of the thermistor (usually 3000-4000)
-
-#define SERIESRESISTOR 9700 // the value of the 'other' resistor  should be close to equal to the thermistors nominal value 
-
-
-                   int samples[NUMSAMPLES];
-
-
-//**********************//**********************//**********************//**********************//**********************//**********************
-// INCLUDE LIBRARIES
-//**********************//**********************//**********************
-
-
-
-
-#include "DHT.h"
-
-#include <U8glib.h>  // OLED
-#include <Wire.h>  // I2C
-#include <Time.h>  // Time Manipulation
-#include <DS1307RTC.h>  // DS1307 RTC
-#include <TimeAlarms.h> // time alarm library //Changed Number of  alarms " dtNBR_ALARMS to 30 "
-                        //"BY EDITING TIMEALARM.H FILE IN LIBRARIES FOLDER.
-                        //increasing this number increases size of the sketch too
-
-
-
-#define DS1307_ID 0x68    //Address of the RTC
-
-
-
-
-
-//********************************************************  D H T 22 and pin ***************************************************************************
-#define DHTPIN A1     // what pin we're connected to
-
-
-
-#define DHTTYPE DHT22   // DHT 22  (AM2302)
-
-DHT dht(DHTPIN, DHTTYPE, 6);
-
-
-
-
-
-
-//**********************//**********************//**********************
-// MAKING CHARACTER ARRAYS or C strings 
-//**********************//**********************//**********************
-
-char timebuf[10];  // array for Time
-
-char str[10]; // for Display
-
-//char datebuf[10];  // Date            //un comment for using/displaying date with time 
-//int year2digit;  // 2 digit year      // necessary for Date Specific Alarms 
-                                        // for example trigering a water pump relay for watering the plants
-                                        // i didn't use it as my setup currently doesn't need date
-                             
-
-
-//**********************//**********************//**********************
-//    OLED CONSTRUCTOR
-//**********************//**********************//**********************
-U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SW SPI Com: SCK = 13, MOSI = 11, CS = 10, A0 = 9    // OLED "constructor" and pins info.
-
-
-
-
-
-
-//**********************//**********************//**********************//**********************//**********************//**********************
-//             SETUP  BEGINS
-//**********************//**********************//**********************//**********************//**********************//**********************
-
-void setup(void) {
-  
+ ***MAKING A MODULAR SYSTEM FOR D.I.Y. GREENHOUSE  
    
- 
-  digitalWrite(Bigfan,HIGH);    // When using "LOW level trigger" type Relay module, turning a pin "HIGH" will
-  digitalWrite(cooler,HIGH);    // turn the relay "OFF" and turning the pin "LOW" turns the relay "ON"    
-  digitalWrite(heater,HIGH);    // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM
-  digitalWrite(spray,HIGH);
-  digitalWrite (lightone,HIGH);
-  
-  analogReference(EXTERNAL);   // AREF connected to 3.3 ON BOARD for accuracy of thermistor 
-                               //(go to adafruit using a thermistor tutorial )
-
-
-
-
-  u8g.firstPage();                    // //START SCREEN "Picture loop" for OLED
-
-  do {
-
-    u8g.setFont(u8g_font_unifont);
-
-    u8g.drawFrame(10, 12, 108, 31);
-    u8g.drawFrame(0, 0, 128, 64);
-    u8g.drawStr(15, 25, "Grow Box 2.5");
-    u8g.drawStr( 16, 40, "Controller");
-    u8g.drawStr(30, 56, "Made by:AMK");                    // go ahead :) Put your name here 
-
-  }
-
-  while ( u8g.nextPage() );
-
-
-  //**********************//**********************//***********************//**********************
-  //Check to see if the RTC is present.if yes then Set the ARDUINO's INTERNAL clock accordingly
-  //**********************//**********************//***********************//**********************
-  
-  
-  // when using timer library the Arduino's "internal clock " is used for getting "current time" 
-  // Arduino's internal clock is NOT so accurate and gets off time so we use time from RTC (which IS 
-  //accurate atleast for our use) and we sync Arduino's internal Clock with the time from RTC and we 
-  //have to do this periodically (atleast once in every 24 hrs )so our tasks can be completed according 
-  //to the correct time we can put the sync command in the Loop and Alarm Functions too 
-  
-  Wire.beginTransmission(DS1307_ID);
-  Wire.write((uint8_t)0x00);
-
-
-
-  if (Wire.endTransmission() == 0) //Did the RTC respond?
-  {
-    setSyncProvider(RTC.get);        //Yes it did, get the time from the RTC
-
-
-
-    Serial.begin(9600);       // for initialinzing serial monitor
-
-    Serial.println("TIME SYNCHRONIZED");
-  }
-
- 
-
-
-
-
-  Serial.println("AMK GROW BOX Controller! V2.5"); //ONLY ONCE AT START UP in seial monitor only
-
- 
- 
-   pinMode(Bigfan,OUTPUT); // set output relay pins // add more if you have more relays or pins connected to something 
-   pinMode(cooler,OUTPUT);
-   pinMode(heater,OUTPUT);
-   pinMode(spray,OUTPUT);
-
-  
-  
-  
-  
-  
-  
-  //***********************//**********************//***********************//**********************
-
-  //  TIMER ALARM THAT RUNS OVER AND OVER AFTER SECONDS (used for lighttwo status led)
-
-  //***********************//**********************//***********************//**********************
-
-
-
-  Alarm.timerRepeat(10, Repeats);   // timer for every 10 seconds blinking LIGHT TWO (status LED) it blinks only when
-                                    // loop is running normally and (below in the sketch ) if DHT sensor has problems 
-                                    //the loop stops and light two led lights up constantly indicating sensor problem
-                                    
-                                             
-
-
-}
-
-//**********************//**********************//**********************
-//                             SETUP END
-//**********************//**********************//**********************
-
-
-
-//***********************//**********************//***********************//**********************
-//************// Function Called When Repeating Timer alarm triggers //*******************
-//***********************//**********************//***********************//**********************
-void Repeats() {
-  //Serial.println("10 second timer");
-
-  digitalWrite(lighttwo, HIGH); // it is also used to indicate Dht read failed and lights up continuously below in dht part
-  Alarm.delay(30);
-  digitalWrite(lighttwo, LOW);
-
-
-}
-
-
-//***********************//**********************//***********************
-
-
-
-
-//**********************//**********************//**********************
-
-//                             LOOP  BEGINS
-
-//**********************//**********************//**********************
-
-
-
-void loop(void) {
-
-
-
-
-  if (hour() == 0 && minute() == 0 && second() == 0)       //If it is 00:00:00   MIDNIGHT UPDATE the Arduino's INTERNAL Clock
-  {
-    setSyncProvider(RTC.get);                            //It's time, sync  the Arduino's INTERNAL Clock  to the RTC
-  }
-
-
-
-
-
- // digitalClockDisplay();      //Update the Clock Display IN SERAL MONITOR
-                                // this calls the function digitalCloclDisplay at the end
- 
-  
-  
-  
-  //***********************//**********************//***********************//**********************
+ ***Independent Grow Box Controller that can be used to Control "" all the Important devices"" to maintain  
+ the ""Grow Environment"" for example Lights, Heater,Cooler,Fan for blowing air inside the box ,Fan for exhaust,  
+ Humidifier or mist maker  
+   
+ *** it can be used in a single small Grow Box or a Grow Room as a single controller or a Large Grow environment   
+   having multiple Devices and multiple controllers all working in their respective areas that can be separated or not   
+   so even if one controller or device fails it can still work because the other devices and controllers will continue   
+   to work in the same large environment making little to no difference in the environment due to failure   
+   because the priority is the plants lives which can get in danger really quickly if the environment is not maintained .  
+     
+ *****i WILL improve it as i learn more :)  
+ //**********************//**********************//**********************  
+   
+   
+   
+ //**********************//**********************//**********************//**********************//**********************//**********************  
+   
+ // Arduino Nano Grow-box / Green-House Controller v 3.0  :)  
+   
+ //**********************//**********************//**********************//**********************//**********************//**********************  
+   
+   
+   
+   
+   
+   
+ //             ***Made by Ali khan from Pakistan :)  
+   
+   
+ //**********************//**********************//**********************  
+   
+ // **PARTS required (for this sketch to work as it is )  
+   
+ //**********************//**********************//**********************  
+   
+  1.Arduino Nano  
+   
+  2.A thermistor (i used A 10K WATERPROOF ONE)  
+   
+  3.A resistor (matching the value of the thermistor's "nominal resistance at 25 DEGREES C" for example: 5k resistor for 5k thermistor)  
+   
+  4.OLED display ssd1306 (mine is ssd1306 but got it working by using sh1106 constructor also got rid of the "white line problem")  
+   
+  5. DHT 22  
     
-   // "lightone "  Control setting...set  time for turning main lights (for plants) ON and OFF 
-
-  //***********************//**********************//***********************//**********************
-  
-  
-  // 24  HRS FORMAT
-  
-  
-  //  if the number of hour,min. or sec. is less than 10 DON'T use "0" here
-
-//**********************************************************************************************************************************************************
-
-// This if statement will make sure that the light one (for plants) stays ON after reset or power down/up cycle  
-// because Alarms will trigger on a given time and will turn the pin HIGH but if after the alarm is triggred AND
-// there is a reset the pin will turn off untill next alarm that turns it ON again 
-// which can interupt photoperiod for plants  So, this line makes sure that LIGHTS turn ON immediately after reset 
-// which happens DURING  the LIGHT period for plants
-
-
-if (hour() >=3 && hour () <=20 )            // Match current time (Hour only) to "set time" 
-{ Serial.println ("Lights turned ON") ;     // to make sure light one stays ON after reset
-  digitalWrite(lightone,LOW);                  // Lightone will stay ON from 3:00:00 AM to 08:59:59 PM as the hour 
-                                               // will remain the same for 59 minutes and 59 seconds after the set hour
-                                               // LOW will trigger the relay ON as the relay type is low level
-                                                          
-  // Lights will turn OFF 1. From Alarams(below) and calling the function  "Alarm OFF" (at the end) and by writing the pin HIGH
-                          // at off time
-                        
-  //                      2. If there is a "reset" and the light time has passed which is set in the statement (Above)
-                          //the relays remain off but "alarm  off time" MUST be set in Alarms function                                                         
-}
-//********************************************************************************************************************************************
-// *******************************************************************************************************************************************
-  //    DAILY TIMED ALARMS THAT TRIGGER ON SPECIFIED TIMES
-
- // these alarms will trigger once and will do "stuff" mentioned in the alarm functions at the end of the loop
-
-// *******************************************************************************************************************************************
-  Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1   for example // for trigerring an alarm on ""03:00:00"" in the morning
-
-
-
-  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2 or for example // for trigerring an alarm on ""04:00:00""  in the morning
-
-
-
-  Alarm.alarmRepeat(5, 0, 0, ON2Alarm); // daily Alarm 3
-
-
-
-  Alarm.alarmRepeat(6, 0, 0, ONAlarm); // daily Alarm 4
-
-
-
-  Alarm.alarmRepeat(7, 0, 0, ONAlarm); // daily Alarm 5
-
-
-
-  Alarm.alarmRepeat(8, 0, 0, ON2Alarm); // daily Alarm 6
-
-
-
-
-
-
-
-
-
-
-  Alarm.alarmRepeat(9, 0, 0, ONAlarm); // daily Alarm 7
-
-
-
-  Alarm.alarmRepeat(10, 0, 0, ONAlarm); // daily Alarm 8
-
-
-  Alarm.alarmRepeat(11, 0, 0, ON2Alarm); // daily Alarm 9
-
-
-
-  Alarm.alarmRepeat(12, 0, 0, ONAlarm); // daily Alarm 10
-
-
-  Alarm.alarmRepeat(13, 0, 0, ONAlarm); // daily Alarm 11
-
-
-
-  Alarm.alarmRepeat(14, 0, 0, ON2Alarm); // daily Alarm 12
-
-
-
-
-
-
-
-
-  Alarm.alarmRepeat(15, 0, 0, ONAlarm); // daily Alarm 13
-
-
-
-  Alarm.alarmRepeat(16, 0, 0, ONAlarm); // daily Alarm 14
-
-
-
-  Alarm.alarmRepeat(17, 0, 0, ON2Alarm); // daily Alarm 15
-
-
-
-  Alarm.alarmRepeat(18, 0, 0, ONAlarm); // daily Alarm 16
-
-
-
-  Alarm.alarmRepeat(19, 0, 0, ONAlarm); // daily Alarm 17
-
-
-
-  Alarm.alarmRepeat(20, 0, 0, ON2Alarm); // daily Alarm 18
-  
-
-
-  Alarm.alarmRepeat(21, 0, 0, OFFAlarm); // daily Alarm 19
-
-
-
-  Alarm.alarmRepeat(22,0, 0, OFFAlarm); // daily Alarm 20
-
-
-
-
-  Alarm.alarmRepeat(23, 0, 0, OFF2Alarm); // daily Alarm 21
-
-
-
-  Alarm.alarmRepeat(0, 0, 0, OFFAlarm); // daily Alarm 22
-
-
-
-  Alarm.alarmRepeat(1, 0, 0, OFFAlarm); // daily Alarm 23
-
-
-
-  Alarm.alarmRepeat(2, 0, 0, OFFAlarm); // daily Alarm 24
-
-
-
-
-
-
-  //***********************//**********************//***********************//**********************//***********************//**********************
-
-//                        DHT 22****** TEMPERATURE HUMIDITY CALCULATIONS
-
-  //********************** **************************************************************
-
-
-
-
-
-  float h = dht.readHumidity();    // READ HUMIDITY
-
-  float t = dht.readTemperature();// Read temperature as Celsius
-
-
-
-  // Check if any reads failed and exit early (to try again).
-
-  if (isnan(h) || isnan(t) ) {
-
-    Serial.println("Failed to read from DHT sensor!");
-   digitalWrite (lighttwo,HIGH);
-    return;
-  }
-
-
-
-/* Serial.print("Humidity: ");
-  Serial.print(h);
-  Serial.print(" %\t");
-
-  Serial.print("T dht: ");
-  Serial.print(t);
-  Serial.print(" *C ");*/
-
-  //***************************************************************************************************************
-  
-  //                              THERMISTOR CALCULATIONS
-  
-  //***************************************************************************************************************
-
-
-
-
-
-  uint8_t i;
-  float average;
-
-
-  for (i = 0; i < NUMSAMPLES; i++) {        // take "N" number of samples in (milivolts) in a row, with a slight delay
-    samples[i] = analogRead(THERMISTORPIN);
-    Alarm.delay(10);
-  }
-
-
-
-
-  average = 0;
-  for (i = 0; i < NUMSAMPLES; i++) {        // average all the samples out
-    average += samples[i];
-  }
-  average /= NUMSAMPLES;
-
-
-
-
-
-  average = 1023 / average - 1;             // convert the value to resistance
-  average = SERIESRESISTOR / average;
-
-  //Serial.print("Thermistor resistance ");
-
-  //Serial.println(average);
-
-  float steinhart;                            //   Calculate temperature from that resistance value
-
-
-
-
-  steinhart = average / THERMISTORNOMINAL;     // (R/Ro)
-  steinhart = log(steinhart);                  // ln(R/Ro)
-  steinhart /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
-  steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
-  steinhart = 1.0 / steinhart;                 // Invert
-  steinhart -= 273.15;                                                             // convert to C
-
- /* Serial.print("T therm ");               // FOR SERIAL MONITOR
-  Serial.print(steinhart);
-  Serial.println(" *C");?*/
-
-
-
-
-
-
-// "steinhart" is the final temperature in celcius i used it as it is below
-
-
-
-
-
-
-
-
-  //***********************//**********************//***********************//**********************
-
-  // CONTROL PART turning things ON and OFF according to Temperature(from DHT) and Humidity (THE GOOD STUFF) "ifs"
-
-  //***********************//**********************//***********************//**********************
-
-
-  if (t >= Tmax)                        //  TURN COOLER ON IF TEMPERATURE IS EQUAL TO OR EXCEEDS "Tmax" (HEATER remains OFF)
-  {
-    digitalWrite(cooler, LOW);
-
-    digitalWrite(heater, HIGH);     // not required as heater is "turned OFF" below but still just to be sure :)
-
-    //Serial.println("TEMPERATURE HIGH"); // PRINT HIGH IN SERIAL MONITOR
-
-  }
-
-
-  if (t <= setT && t > Tmin)       // Turn OFF the COOLER when TEMP GETS DOWN TO "setT" OR GOES BELOW
-  
-  
-  { digitalWrite(cooler, HIGH);
-
-
-    //Serial.println("Temperature  NORMAL"); // PRINT NORMAL IN SERIAL MONITOR
-  }
-
-
-  if (t <= Tmin)    // TURN HEATER "ON" WHEN TEMPERATURE GETS TO "Tmin" OR BELOW (cooler remains OFF)
-  {
-    digitalWrite(heater, LOW);
-    digitalWrite (cooler, HIGH);
-    //Serial.println("Temperature  LOW"); //PRINT LOW
-  }
-
-
-  if (t >= setT && t < Tmax)  // TURN OFF HEATER WHEN TEMP GETS TO "setT" (and REMAINS LOWER THAN "Tmax")
-  { digitalWrite (heater, HIGH);
-  }
-
- 
- 
- 
- //**************************************** Control for HUMIDITY*******************************
- 
- if (h>=setHmx)
-{digitalWrite(Bigfan,LOW); //  Turn fan on when humidity is high
-}
-
- 
- if (h<=setHnr && h >setHlw)
- {
-  digitalWrite(Bigfan,HIGH);
- }
- 
- 
- if (h>=setHnr)
-{digitalWrite(spray,HIGH);            // Turn Spray off when humidity is normal or high
-}
- 
- if (h<=setHlw)
-{digitalWrite(spray,LOW); //  Turn Spray on when humidity is low
- digitalWrite(Bigfan,HIGH);
- }
-
-
-  
- 
-  
-  //***********************//**********************
-
-  // OLED PART
-
-  //DISPLAY ON THE OLED
-
-  //***********************//**********************
-
-
-
-
-  tmElements_t tm;                                         //formatting time and date before displaying
-  if (RTC.read(tm)) {
+  6.RELAY MODULE LOW LEVEL TRIGGER TYPE (5 Relays required in total for all the pins, can be seperate 4 CAN WORK TOO )  
+   
+  7. DS3231 RTC MODULE  (RESISTOR from charging circuit REMOVED and charging DISABLED...WITH CR2032(NON-rechargeable)Cell  
     
-    sprintf(timebuf, "%02d:%02d", tm.Hour, tm.Minute); // format time
+  8. AN LED WITH APPROPRIATE RESISTOR FOR USING AS A STATUS LED  
+   
+  */  
+   
+   
+   
+   
+   
+ //**********************//**********************//**********************  
+ //TEMPERATURE and HUMIDITY "CONTROL PARAMETERS"                       
+ //**********************//**********************//**********************  
+   
+ //Default Temperature and Humidity Settings  
+   
+ int Tmax   =   29 ;     // Set temperature Maximum point at which "Cooler" will turn ON  
+ int setT   =   25 ;     // Set temperature point at which "heater" and "cooler" will turn OFF  
+ int Tmin   =   19 ;     // Set temperature Minimum point at which Heater will turn ON  
+ int setHmx =   80 ;     // set humidity max at which "bigfan" will turn ON  
+ int setHnr =   65 ;     // Set humidity normal at which "bigfan" and "spray" will turn OFF  
+ int setHlw =   55 ;     // Set humidity low at which "spray will turn ON  
+   
+   
+ // Separate Temperature and Humidity Settings for Day and Night time can be done by Alarms function belowwww  
+   
+ //**********************//**********************//**********************  
+ //    Light Timer ON/OFF Time Settings  
+ //**********************//**********************//**********************  
+   
+   
+ const int OnTime = 14 ; // Hour when Light will turn ON (24 hr format NO zeros before single digits)  
+ const int OffTime = 8 ;  // Hour when Light will turn OFF (24 hr format NO zeros before single digits)  
+   
+   
+ // SET RTC'S TIME USING DS1307 EXAMPLE SKETCH FROM ABOVE FILE > EXAMPLE > DS1307 > SETTIME  
+ // THEN UPLOAD THIS SKETCH  
+   
+   
+ //*****************************************************************************************************************  
+   
+   
+ bool LightSts   = 0 ;       // DON'T CHANGE MANUALLY THESE ARE FOR STATUS UPDATES IN SERIAL MONITOR      
+ bool CoolerSts  = 0 ;  
+ bool HeaterSts  = 0 ;  
+ bool BigFanSts  = 0 ;  
+ bool SpraySts   = 0 ;  
+   
+ //**********************//**********************//**********************  
+ //    PINS AND CONNECTIONS  
+ //**********************//**********************//**********************  
+ // Five pins used in total which have to be connected to five relays(optically isolated for eliminating interference)  
+ // usually a 4 Relay board is available so it can be used as only one of the pins for Heater/Cooler are required   
+ // and they can be swapped according to the outdoor temperature in different seasons  
+ //Ground of Relay Board and Arduino Board should be common for relays to work  
+ //LOW-level Relay board will trigger the relay when the trigger pin is LOW/off/grounded  
+ //so when something has to be turned ON the trigger pin will become LOW otherwise it will stay HIGH (as.a.mf.) all the time   
+ //that thing is OFF :)  
+   
+ const byte Bigfan   = 4 ;    // Bigfan turns on at high humidity   
+ const byte cooler   = 5 ;    // Cooler turn on at high temp (T1 from DHT)  
+ const byte spray    = 6 ;    // Spray turns on at low humidity  
+ const byte lightone = 7 ;    // Main Lights(for plants)   
+   
+ const byte heater   = 8 ;    // Heater turns ON at low temp (T1 from DHT)  
+ const byte lighttwo = 3 ;    // pin for "status LED' inicating the loop is running when oled is turned OFF... 
+
+                  //i turn it off by removing two jumper wires manually   
+                  //blinks every ten second (change ten second timer)  
+   
+ // ******** THERMISTOR AND DHT PINS BELOW *******  
+ // Connect the RTC according to it's pinout (hint google rtc ds3231 pins and connections)  
+   
+   
+   
+ //**********************//**********************//*********************  
+ //THERMISTOR PIN and SETTINGS  
+ //**********************//**********************//**********************  
+   
+ #define THERMISTORPIN A0     // which analog pin to connect to thermistor and the resistor "joint"      
+   
+   
+   
+   
+ #define THERMISTORNOMINAL 10000  // resistance at 25 degrees C     
+   
+ #define TEMPERATURENOMINAL 25   // temp. for nominal resistance (almost always 25 C)  
+   
+ #define NUMSAMPLES 5  // how many samples to take and average,takes longer gets 'smooth'  
+   
+ #define BCOEFFICIENT 3500 // The beta coefficient of the thermistor (usually 3000-4000)  
+   
+ #define SERIESRESISTOR 9700 // the value of the 'other' resistor should be close to the thermistors nominal value   
+   
+  int samples[NUMSAMPLES];  
+   
+   
+ //**********************//**********************//**********************  
+ // INCLUDE LIBRARIES  
+ //**********************//**********************//**********************  
+   
+   
+   
+   
+ #include "DHT.h"  
+   
+ #include <U8glib.h> // OLED  
+ #include <Wire.h> // I2C  
+ #include <Time.h> // Time Manipulation  
+ #include <DS1307RTC.h> // DS1307 RTC  
+ #include <TimeAlarms.h> // time alarm library //Changed Number of alarms " dtNBR_ALARMS to 30 "  
+             //"BY EDITING TIMEALARM.H FILE IN LIBRARIES FOLDER.  
+             //increasing this number increases size of the sketch too  
+   
+   
+   
+ #define DS1307_ID 0x68  //Address of the RTC  
+   
+   
+   
+   
+   
+ //******************************************************** D H T 22 and pin ***************************************************************************  
+ #define DHTPIN A1   // what pin we're connected to  
+   
+   
+   
+ #define DHTTYPE DHT22  // DHT 22 (AM2302)  
+   
+ DHT dht(DHTPIN, DHTTYPE, 6);  
+   
+   
+   
+   
+   
+   
+ //**********************//**********************//**********************  
+ // MAKING CHARACTER ARRAYS or C strings   
+ //**********************//**********************//**********************  
+   
+ char timebuf[10]; // array for Time  
+   
+ char str[10]; // for Display  
+   
+ //char datebuf[10]; // Date      //un comment for using/displaying date with time   
+ //int year2digit; // 2 digit year   // necessary for Date Specific Alarms   
+                     // for example triggering a water pump relay for watering the plants  
+                     // i didn't use it as my setup currently doesn't need date  
+                  
+   
+   
+ //**********************//**********************//**********************  
+ //  OLED CONSTRUCTOR  
+ //**********************//**********************//**********************  
+ U8GLIB_SH1106_128X64 u8g(13, 11, 10, 9); // SW SPI Com: SCK = 13, MOSI = 11, CS = 10, A0 = 9  // OLED "constructor" and pins info.  
+   
+   
+   
+   
+   
+   
+ //**********************//**********************//**********************//**********************//**********************//**********************  
+ //       SETUP BEGINS  
+ //**********************//**********************//**********************//**********************//**********************//**********************  
+   
+ void setup() {  
+    
+  pinMode(Bigfan, OUTPUT); // set output relay pins // add more if you have more relays or pins connected to something   
+  pinMode(cooler, OUTPUT);  
+  pinMode(heater, OUTPUT);  
+  pinMode(spray,  OUTPUT);  
+  pinMode(lightone,OUTPUT);  
+  pinMode(lighttwo,OUTPUT);  
+   
+    
+  digitalWrite(Bigfan, HIGH);  // When using "LOW level trigger" type Relay module, turning a pin "HIGH" will  
+  digitalWrite(cooler, HIGH);  // turn the relay "OFF" and turning the pin "LOW" turns the relay "ON"    
+  digitalWrite(heater, HIGH);  // THIS WILL PREVENT STARTUP RELAY TRIGGERING PROBLEM  
+  digitalWrite(spray,  HIGH);  
+  digitalWrite(lightone,HIGH);  
+    
+  analogReference(EXTERNAL);  // AREF connected to 3.3 ON BOARD for accuracy of thermistor   
+                 //(go to adafruit using a thermistor tutorial )  
+   
+   
+   
+   
+  u8g.firstPage();          // //START SCREEN "Picture loop" for OLED  
+   
+  do {  
+   
+   u8g.setFont(u8g_font_unifont);  
+   
+   u8g.drawFrame(10, 12, 108, 31);  
+   u8g.drawFrame(0, 0, 128, 64);  
+   u8g.drawStr(15, 25, "Grow Box 3.0");  
+   u8g.drawStr( 16, 40, "Controller");  
+   u8g.drawStr(30, 56, "Made by:AMK");            
+   
+  }  
+   
+  while ( u8g.nextPage() );  
+   
+   
+  //**********************//**********************//***********************//**********************  
+  //Check to see if the RTC is present.if yes then Set the ARDUINO's INTERNAL clock accordingly  
+  //**********************//**********************//***********************//**********************  
+    
+    
+  // when using timer library the Arduino's "internal clock " is used for getting "current time"   
+  // Arduino's internal clock is NOT so accurate and gets off time so we use time from RTC (which IS   
+  // accurate atleast for our use) and we sync Arduino's internal Clock with the time from RTC and we   
+  // have to do this periodically (at-least once in every 24 hrs )so our tasks can be completed according   
+  // to the correct time we can put the sync command in the Loop and Alarm Functions too   
+    
+  Wire.beginTransmission(DS1307_ID);  
+  Wire.write((uint8_t)0x00);  
+   
+   
+   
+  if (Wire.endTransmission() == 0)  //Did the RTC respond?  
+  {  
+   setSyncProvider(RTC.get);    //Yes it did, get the time from the RTC  
+   
+   
+   
+   Serial.begin(9600);       // for initializing serial monitor  
+   
+   Serial.println("TIME SYNCHRONIZED");  
+  }  
+   
+    
+   
+   
+   Serial.println("AMK GROW BOX Controller! V3.0 "); //ONLY ONCE AT START UP in serial monitor only  
+   
+   Serial.println("AmkDiyProjects.Blogspot.com"); //ONLY ONCE AT START UP in serial monitor only  
+   
+   Serial.println("Subscribe to My Channel "); //ONLY ONCE AT START UP in serial monitor only  
+   
+   Serial.println("Youtube.com/CrazyGuyOfficial "); //ONLY ONCE AT START UP in serial monitor only  
+   
     
     
     
-    //sprintf(timebuf, "%02d:%02d:%02d", tm.Hour, tm.Minute, tm.Second); // format time
-    //sprintf(datebuf, "%02d/%02d/%02d",tm.Day, tm.Month, year2digit);  // format date
-
-    //     year2digit = tm.Year - 30;  // 2 digit year variable
-    //   year4digit = tm.Year + 1970;  // 4 digit year variable
-
-
-
-  
-  
-  
-  
-  
-  
-
-
-
-
-    u8g.firstPage();                          // PICTURE LOOP FOR OLED    it's is a doer :)
-    do {
-      u8g.setFont(u8g_font_helvB08);    // set font for oled display
-
-
-
-
-
-
-
-
-
-      if (t >= Tmax)           //conditions for showing temperature status in the first line (high ,upper range ,normal range,low )
-      {
-        u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 73, 14, "*HI TEMP*");
-
-      }
-
-      if (t <= Tmax && t >= setT)
-
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 80, 14, "*^^U^^*");
-      }
-
-      if
-      (t <= setT && t > Tmin)
-
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 80, 14, ">  N  <");
-      }
-      if
-      (t <= Tmin)
-
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 73, 14, "*LO TEMP*");
-      }
-
-
-
-      if (h>=setHmx)
-
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 32, 14, "HMx");
-      }
-
-      if (h>setHnr && h< setHmx)
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 32, 14, "Hur");
-      }
+    
+    
+    
+  //***********************//**********************//***********************//**********************  
+   
+  // TIMER ALARM THAT RUNS OVER AND OVER AFTER SECONDS   
+    
+  //***********************//**********************//***********************//**********************  
+   
+   
+   
+  Alarm.timerRepeat(10, Repeats);  // timer for every 10 seconds blinking LIGHT TWO (status LED) it blinks only when  
+                   // loop is running normally and (below in the sketch ) if DHT sensor has problems   
+                   //the loop stops and light two led lights up constantly indicating sensor problem  
+                     
+                          
+   
+   
+ }  
+   
+ //**********************//**********************//**********************  
+ //               SETUP END  
+ //**********************//**********************//**********************  
+   
+   
+   
+ //***********************//**********************//***********************//**********************  
+ //************// Function Called When Repeating Timer alarm triggers //*******************  
+ //***********************//**********************//***********************//**********************  
+   
+   
+   
+   
+ void Repeats() {  
+    
+    
+  Serial.println("*****>>10 second timer<<*****");  
+   
+  digitalWrite(lighttwo, HIGH); // it is also used to indicate Dht read failed and lights up continuously below in dht part  
+    
+  Alarm.delay(30);  
+    
+  digitalWrite(lighttwo, LOW);  
+    
+  digitalClockDisplay();    // Update the Clock Display IN SERAL MONITOR  
+     
+                            // this calls the function digitalClockDisplay at the end  
+   
+   
+   
+   
+   
+   
+   
+   
+  if (LightSts ==1) {  
+    
+  Serial.println ("< Lights ON >");  
+    
+    
+    
+    
+  }  
+    
+    
+  else {  
+     
+    Serial.println ("< Lights OFF >");  
+   
+     
+  }  
+   
+   
+  if (CoolerSts ==1) {  
+    
+  Serial.println ("< Cooler ON >");  
+    
+    
+    
+    
+  }  
+    
+    
+  else {  
+     
+    Serial.println ("< Cooler OFF >");  
+   
+     
+  }  
+   
+   
+  if (HeaterSts ==1) {  
+    
+  Serial.println ("< Heater ON >");  
+    
+    
+    
+    
+  }  
+    
+    
+  else {  
+     
+    Serial.println ("< Heater OFF >");  
+   
+     
+  }  
+   
+  if (BigFanSts ==1) {  
+    
+  Serial.println ("< BigFan ON >");  
+    
+    
+    
+    
+  }  
+    
+    
+  else {  
+     
+    Serial.println ("< Bigfan OFF >");  
+   
+     
+  }  
+   
+   
+  if (SpraySts ==1) {  
+    
+  Serial.println ("< Spray ON >");  
+    
+    
+    
+    
+  }  
+    
+    
+  else {  
+     
+    Serial.println ("< Spray OFF >");  
+   
+     
+  }  
+   
+ }  
+   
+   
+ //***********************//**********************//***********************  
+   
+   
+   
+   
+ //**********************//**********************//**********************  
+   
+ //               LOOP BEGINS  
+   
+ //**********************//**********************//**********************  
+   
+   
+   
+ void loop() {  
+   
+   
+   
+   
+  if (hour() == 0 && minute() == 0 && second() == 0)  //If it is 00:00:00  MIDNIGHT UPDATE the Arduino's INTERNAL Clock  
+  {  
+   setSyncProvider(RTC.get);             //It's time, sync the Arduino's INTERNAL Clock to the RTC  
+  }  
+   
+   
+   
+   
+   
+    
+    
+    
+    
+    
+  //***********************//**********************//***********************//**********************  
+   
+    
+  //      LET THERE BE LIGHT   
+    
+   
+ //**************************************************************************************************  
+ // This will make sure that the light one (for plants) stays ON after reset or power down/up cycle   
+ // because Alarms will trigger on a given time and will turn the pin HIGH but if after the alarm is   
+ // triggered AND there is a reset the pin will turn off until next alarm that turns it ON again   
+ // which can interrupt photo-period for plants So, this line makes sure that LIGHTS turn ON immediately   
+ // after reset which happens DURING the LIGHT period for plants  
+   
+   
+   
+   
+  //**********************************************************  
+   
+  // Turn Lights On/Off  
+   
+  //**********************************************************  
+   
+  if (OffTime > OnTime) {   // Same Day         //GETS THE JOB DONE :)  
+   
+   
+   if (hour() >= OnTime && hour () <= OffTime - 1)  {   
+                  
+                // if current hour is equal or greater than ON time  
+                // AND equal to or less than OFF time minus 1 then turn the  
+                // lights ON (by turning pins LOW because of using LOW level Relays)  
+                // Minus 1 from OFF time because we are not using Minutes here  
+                // For Example turn off time is "16" (4 PM) the hour number will be "16" from  
+                // 16:00 till 16:59 (4:00 till 4:59)  
+   
+    digitalWrite(lightone, LOW);  
+   
+   
+      
+   
+     LightSts = 1 ;   
+     
+     
+   }  
+   
+     
+   
+   else {  
+   
+    digitalWrite(lightone, HIGH);  
+   
+   
+   
+    LightSts = 0 ;  
+     
+     
+   }  
+   
+    
+    
+  }  
+   
+   
+  //**********************************************************  
+   
+   
+  if (OffTime < OnTime) {   // Different Day  
+   
+   
+   
+   if (hour() >= OnTime || hour () <= OffTime - 1) {      
+      
+                // if current hour is equal or greater than ON time  
+                // OR equal to or less than OFF time minus 1 then turn the  
+                // lights ON (by turning pins LOW because of using LOW level Relays)  
+                // Minus 1 from OFF time because we are not using Minutes here  
+                // For Example turn off time is "16" (4 PM) the hour number will be "16" from  
+                // 16:00 till 16:59 (4:00 till 4:59)  
+                // Minutes,Seconds even day,date,year can be used by adding code  
+   
+   
+    digitalWrite(lightone, LOW);  
+   
+   
+   
+     
+   
+   
+   
+    LightSts = 1;  
+   
+   
+   }  
+   
+   
+   
+   else {  
+   
+   
+   
+   
+   
+    digitalWrite(lightone, HIGH);  
+   
+   
+   
+   
+   
+   
+   
+      
+    LightSts = 0 ;  
+   
+   
+   
+   
+   }  
+   
+   
+    
+    
+    
+    
+    
+  }  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+ //********************************************************************************************************************************************  
+ // *******************************************************************************************************************************************  
+  //  DAILY TIMED ALARMS THAT TRIGGER ON SPECIFIED TIMES  
+   
+  // these alarms will trigger once and will do "stuff" mentioned in the alarm functions at the end of the loop  
+   
+ // *******************************************************************************************************************************************  
+  Alarm.alarmRepeat(3, 0, 0, ONAlarm); // daily Alarm 1  for example // for triggering an alarm on ""03:00:00"" in the morning  
+   
+   
+   
+  Alarm.alarmRepeat(4, 0, 0, ONAlarm); // daily Alarm 2 or for example // for triggering an alarm on ""04:00:00"" in the morning  
+   
+   
+   
+  Alarm.alarmRepeat(5, 0, 0, ON2Alarm); // daily Alarm 3  
+   
+   
+   
+  Alarm.alarmRepeat(6, 0, 0, ONAlarm); // daily Alarm 4  
+   
+   
+   
+  Alarm.alarmRepeat(7, 0, 0, ONAlarm); // daily Alarm 5  
+   
+   
+   
+  Alarm.alarmRepeat(8, 0, 0, ON2Alarm); // daily Alarm 6  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+  Alarm.alarmRepeat(9, 0, 0, ONAlarm); // daily Alarm 7  
+   
+   
+   
+  Alarm.alarmRepeat(10, 0, 0, ONAlarm); // daily Alarm 8  
+   
+   
+  Alarm.alarmRepeat(11, 0, 0, ON2Alarm); // daily Alarm 9  
+   
+   
+   
+  Alarm.alarmRepeat(12, 0, 0, ONAlarm); // daily Alarm 10  
+   
+   
+  Alarm.alarmRepeat(13, 0, 0, ONAlarm); // daily Alarm 11  
+   
+   
+   
+  Alarm.alarmRepeat(14, 0, 0, ON2Alarm); // daily Alarm 12  
+   
+   
+   
+   
+   
+   
+   
+   
+  Alarm.alarmRepeat(15, 0, 0, ONAlarm); // daily Alarm 13  
+   
+   
+   
+  Alarm.alarmRepeat(16, 0, 0, ONAlarm); // daily Alarm 14  
+   
+   
+   
+  Alarm.alarmRepeat(17, 0, 0, ON2Alarm); // daily Alarm 15  
+   
+   
+   
+  Alarm.alarmRepeat(18, 0, 0, ONAlarm); // daily Alarm 16  
+   
+   
+   
+  Alarm.alarmRepeat(19, 0, 0, ONAlarm); // daily Alarm 17  
+   
+   
+   
+  Alarm.alarmRepeat(20, 0, 0, ON2Alarm); // daily Alarm 18  
+    
+   
+   
+  Alarm.alarmRepeat(21, 0, 0, OFFAlarm); // daily Alarm 19  
+   
+   
+   
+  Alarm.alarmRepeat(22,0, 0, OFFAlarm); // daily Alarm 20  
+   
+   
+   
+   
+  Alarm.alarmRepeat(23, 0, 0, OFF2Alarm); // daily Alarm 21  
+   
+   
+   
+  Alarm.alarmRepeat(0, 0, 0, OFFAlarm); // daily Alarm 22  
+   
+   
+   
+  Alarm.alarmRepeat(1, 0, 0, OFFAlarm); // daily Alarm 23  
+   
+   
+   
+  Alarm.alarmRepeat(2, 0, 0, OFF2Alarm); // daily Alarm 24  
+   
+   
+   
+   
+   
+   
+ //***********************//**********************//***********************//**********************  
+   
+ //            DHT 22****** TEMPERATURE HUMIDITY CALCULATIONS  
+   
+ //***********************//**********************//***********************//**********************  
+   
+   
+   
+   
+   
+  float h = dht.readHumidity();  // READ HUMIDITY  
+   
+  float t = dht.readTemperature();// Read temperature as Celsius  
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  // Check if any reads failed and exit early (to try again)  
+   
+    
+   
+ if (isnan(h) || isnan(t) ) {  
+   
+    
+     Alarm.delay(1000);  
+   
+   Serial.println("Failed to read from DHT sensor!");  
+   Serial.println("Wait for 2 secs if it doesn't start check circuit");  
+   
+   digitalWrite (lighttwo,HIGH);  
+   
+   
+   return;  
+  }  
+   
+   
+   
+   
+   
+   
+  /*Serial.print("Humidity: ");  
+  Serial.print(h);  
+  Serial.print(" %\t");  
+   
+  Serial.print("T1: ");  
+  Serial.print(t);  
+  Serial.print(" *C ");  
+ */  
+ //***************************************************************************************************************  
+    
+ //               THERMISTOR CALCULATIONS  
+    
+ //***************************************************************************************************************  
+   
+   
+   
+   
+   
+  uint8_t i;  
+  float average;  
+   
+   
+  for (i = 0; i < NUMSAMPLES; i++) {    // take "N" number of samples in (milivolts) in a row, with a slight delay  
+   samples[i] = analogRead(THERMISTORPIN);  
+   Alarm.delay(10);  
+  }  
+   
+   
+   
+   
+  average = 0;  
+  for (i = 0; i < NUMSAMPLES; i++) {    // average all the samples out  
+   average += samples[i];  
+  }  
+  average /= NUMSAMPLES;  
+   
+   
+   
+   
+   
+  average = 1023 / average - 1;       // convert the value to resistance  
+  average = SERIESRESISTOR / average;  
+   
+  //Serial.print("Thermistor resistance ");  
+   
+  //Serial.println(average);  
+   
+  float steinhart;              //  Calculate temperature from that resistance value  
+   
+   
+   
+   
+  steinhart = average / THERMISTORNOMINAL;   // (R/Ro)  
+  steinhart = log(steinhart);         // ln(R/Ro)  
+  steinhart /= BCOEFFICIENT;          // 1/B * ln(R/Ro)  
+  steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)  
+  steinhart = 1.0 / steinhart;         // Invert  
+  steinhart -= 273.15;                               // convert to C  
+   
+  /*Serial.print("T2 ");         // FOR SERIAL MONITOR  
+  Serial.print(steinhart);  
+  Serial.println(" *C");  
+ */  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+  //***********************//**********************//***********************//**********************  
+   
+  // CONTROL PART turning things ON and OFF according to Temperature(from DHT) and Humidity (THE GOOD STUFF) "ifs"  
+   
+  //***********************//**********************//***********************//**********************  
+   
+   
+  if (t >= Tmax)            // TURN COOLER ON IF TEMPERATURE IS EQUAL TO OR EXCEEDS "Tmax" (HEATER remains OFF)  
+  {  
+   digitalWrite(cooler, LOW);  
+   CoolerSts = 1 ;  
+  }  
+   
+   
+  if (t <= setT )    // Turn OFF the COOLER when TEMP GETS DOWN TO "setT" OR GOES BELOW  
+    
+    
+  { digitalWrite(cooler, HIGH);  
+   
+   CoolerSts = 0 ;  
+     
+  }  
+   
+   
+  if (t <= Tmin)  // TURN HEATER "ON" WHEN TEMPERATURE GETS TO "Tmin" OR BELOW (cooler remains OFF)  
+  {  
+   digitalWrite(heater, LOW);  
+   HeaterSts = 1 ;  
+  }  
+   
+   
+  if (t >= setT ) // TURN OFF HEATER WHEN TEMP GETS TO "setT" (and REMAINS LOWER THAN "Tmax")  
+  { digitalWrite (heater, HIGH);  
+  HeaterSts = 0 ;  
+  }  
+   
+ //***********************//**********************//***********************//**********************  
+   
+    
+    
+  //************************************   Control for HUMIDITY  ******************************  
+    
+    
+  //***********************//**********************//***********************//**********************  
+   
+    
+    
+  if (h>=setHmx)  
+   
+ {  
+    
+  digitalWrite(Bigfan,LOW);   // Turn fan on when humidity is high  
+    
+    
+  BigFanSts = 1 ;  
+   
+ }  
+   
+    
+  if (h<=setHnr )  
+    
+  {  
+  digitalWrite(Bigfan,HIGH);  
+    
+    
+  BigFanSts=0;  
+    
+    
+  }  
+    
+    
+    
+  if (h<=setHlw)  
+ {  
+    
+  digitalWrite(spray,LOW);   // Turn Spray on when humidity is low  
+    
+  SpraySts= 1 ;  
+   
+    
+  }  
+    
+  if (h>=setHnr)  
+   
+ {  
+    
+  digitalWrite(spray,HIGH);  // Turn Spray off when humidity is normal or high  
+  SpraySts = 0 ;  
+   
+ }  
+    
+    
+    
+    
+    
+   
+   
+    
+    
+    
+ //***********************//**********************  
+   
+ // OLED PART  
+   
+ //DISPLAY ON THE OLED  
+   
+ //***********************//**********************  
+   
+   
+   
+   
+  tmElements_t tm;                     //formatting time and date before displaying  
+    
+    
+  if (RTC.read(tm)) {  
+     
+   sprintf(timebuf, "%02d:%02d", tm.Hour, tm.Minute); // format time  
+     
+     
+     
+    
+    
+    
+   
+   
+   
+   
+   u8g.firstPage();          // PICTURE LOOP FOR OLED  it's is a doer :)  
+     
+     
+     
+   do {  
+     
+      
+    u8g.setFont(u8g_font_helvB08);  // set font for oled display  
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    if (t >= Tmax)   //conditions for showing temperature status in the first line (high ,upper range ,normal range,low )  
+      
+      
+    {  
+     u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 73, 14, "*HI TEMP*");  
+   
+    }  
+   
+    if (t <= Tmax && t >= setT)  
+   
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 80, 14, "*^^U^^*");  
+    }  
+   
+    if  
+    (t <= setT && t > Tmin)  
+   
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 80, 14, "> N <");  
+    }  
+    if  
+    (t <= Tmin)  
+   
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 73, 14, "*LO TEMP*");  
+    }  
+   
+   
+   
+    if (h>=setHmx)  
+   
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 32, 14, "HMx");  
+    }  
+   
+    if (h>setHnr && h< setHmx)  
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 32, 14, "Hur");  
+    }  
        
-       if (h>setHlw && h<=setHnr)
-       { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 32, 14, "Hn");
-      }
-
-      if (h<=setHlw)
-      { u8g.drawFrame(0, 0, 128, 20);
-        u8g.drawStr( 32, 14, "HL");
-      }
-
-
-     
-      
-
-
-
-
-
-
-
-
-
-
-      // Display Time on OLED
-      u8g.drawFrame(0, 0, 128, 20); // Draw frame
-
-
-
-
-
-
-      u8g.setPrintPos(3, 14);  // set position for displaying time
-      u8g.print(timebuf);        //display time
-
-
-
-
-
-
-
-
-      // Display CURRENT Temperature1&2,humidity , Set Tmax ,Set Tnor and Set Tmin on OLED
-
-      u8g.drawStr(0, 34, "T1:");    // first digit is screen coordinate for X-axis and second for Y-axis
-      // (it starts on left bottom corner of the text which is to be shown on the oled)
-      u8g.drawStr( 26, 34, dtostrf(t, 5, 2, str)); //stienhart is the final celsius reading also shown in serial monitor
-      u8g.drawStr( 56, 34, "\260C");
-      
-      u8g.drawStr( 70, 34, "T2:");
-      u8g.drawStr( 88, 34, dtostrf(steinhart, 5, 2, str));
-      u8g.drawStr( 118, 34, "\260C");
+     if (h>setHlw && h<=setHnr)  
+     { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 32, 14, "Hn");  
+    }  
+   
+    if (h<=setHlw)  
+    { u8g.drawFrame(0, 0, 128, 20);  
+     u8g.drawStr( 32, 14, "HL");  
+    }  
+   
+   
       
       
-      u8g.drawStr( 70, 44, "H:");
-      u8g.drawStr( 88, 44, dtostrf(h, 5, 2, str));
-      u8g.drawStr( 119, 44, "%");
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+ //************// Display Time on OLED//**************//  
       
-
       
-      u8g.drawStr( 0, 44, "Mx:");
-      u8g.drawStr( 26, 44, dtostrf(Tmax, 5, 2, str));
-      u8g.drawStr( 56, 44, "\260C");
-
-      u8g.drawStr( 0, 54, "Nr :");
-      u8g.drawStr( 26, 54, dtostrf(setT, 5, 2, str));
-      u8g.drawStr( 56, 54, "\260C");
-
-      u8g.drawStr( 0, 64, "Mn:");
-      u8g.drawStr( 26, 64, dtostrf(Tmin, 5, 2, str));
-      u8g.drawStr( 56, 64, "\260C");
-
-     
-
+      
+    u8g.drawFrame(0, 0, 128, 20); // Draw frame  
+   
+   
+   
+   
+   
+   
+    u8g.setPrintPos(3, 14); // set position for displaying time  
+    u8g.print(timebuf);    //display time  
+   
+   
+   
+   
+   
+   
+   
+   
+ //******// Display CURRENT Temperature1&2,humidity , Set Tmax ,Set Tnor and Set Tmin on OLED//*********************  
+   
+      
+      
+      
+    u8g.drawStr(0, 34, "T1:");  // first digit is screen coordinate for X-axis and second for Y-axis  
+                   // (it starts on left bottom corner of the text which is to be shown on the oled)  
+      
+                   // T1 for temperature from DHT22 and T2 is from Thermistor  
+      
+    u8g.drawStr( 26, 34, dtostrf(t, 5, 2, str));   
+    u8g.drawStr( 56, 34, "\260C");  
+      
+    u8g.drawStr( 70, 34, "T2:");  
+    u8g.drawStr( 88, 34, dtostrf(steinhart, 5, 2, str)); //stienhart is the final Celsius reading  
+    u8g.drawStr( 118, 34, "\260C");  
+      
+      
+    u8g.drawStr( 70, 44, "H:");  
+    u8g.drawStr( 88, 44, dtostrf(h, 5, 2, str));  
+    u8g.drawStr( 119, 44, "%");  
+      
+   
+      
+    u8g.drawStr( 0, 44, "Mx:");  
+    u8g.drawStr( 26, 44, dtostrf(Tmax, 5, 2, str));  
+    u8g.drawStr( 56, 44, "\260C");  
+   
+    u8g.drawStr( 0, 54, "Nr :");  
+    u8g.drawStr( 26, 54, dtostrf(setT, 5, 2, str));  
+    u8g.drawStr( 56, 54, "\260C");  
+   
+    u8g.drawStr( 0, 64, "Mn:");  
+    u8g.drawStr( 26, 64, dtostrf(Tmin, 5, 2, str));  
+    u8g.drawStr( 56, 64, "\260C");  
+   
+      
+   
+      
      
    
-
-
-
-
-      Alarm.delay(500);
-
-
-    } while ( u8g.nextPage() );
-  }
-
-
-
-  
-
-
-}
-
-
-
-//**********************//**********************//**********************
-//                             LOOP END
-//**********************//**********************//**********************
-
-
-
-
-
-
-
-
-//**********************//**********************//**********************//**********************
-
-//Functions called when daily time specific alarms (above in the loop) triggers: 
-
-//***********************************************//**********************//**********************
-
-
-void ONAlarm() {
-  
-  
-  //Serial.println("Alarm: - turn lights oN");
-  
-  //digitalWrite(lightone, LOW );
-  
-  Tmax = 29;                                 // set day time temperatures
-  setT = 25;
-  Tmin = 19;
-  
-  
-}
-
-
-void ON2Alarm() {
-
-
-
- // Serial.println("Alarm: - turn lights oN");
- // digitalWrite(lightone, LOW);
-  setSyncProvider(RTC.get);                            //It's time, sync  the Arduino's INTERNAL Clock  to the RTC
-  
-  
-}
-
-
-void OFFAlarm() {
-
-
-
-Serial.println("Alarm: - turn lights oFF");
-  digitalWrite(lightone, HIGH);
-  Tmax = 26;                                      // set night time temperatures
-  setT = 23;
-  Tmin = 19;
-
-}
-
-
-
-void OFF2Alarm() {
-
-
-//Serial.println("Alarm: - turn lights oFF");
-  digitalWrite(lightone, HIGH);
-  setSyncProvider(RTC.get);                            //It's time, sync  the Arduino's INTERNAL Clock  to the RTC
- 
-
-}
-
-
-
-
-//***********************************************
-
-/*    uncomment for serial display of time 
-
-
-
-
-//Function for digital clock display (in the SERIAL MONITOR ): prints preceding colon and leading 0
-//
-
-
-void digitalClockDisplay(void)
-{
-  Serial.print(hourFormat12());
-  printDigits(minute());
-  printDigits(second());
-  Serial.println("");
-  Serial.println(dayStr(weekday()));
-  Serial.print(monthStr(month()));
-  Serial.print("  ");
-  Serial.print(day());
-  Serial.print("  ");
-  Serial.println(year());
-}
-void printDigits(int digits)
-{
-  Serial.print(":");
-  if (digits < 10)
-  {
-    Serial.print('0');
-  }
-  Serial.print(digits);
-  
-}
-
-*/
+   
+   
+   
+    Alarm.delay(500);  
+   
+   
+   } while ( u8g.nextPage() );  
+  }  
+   
+   
+   
+    
+   
+   
+ }  
+   
+   
+   
+ //**********************//**********************//**********************  
+ //               LOOP END  
+ //**********************//**********************//**********************  
+   
+   
+   
+   
+   
+   
+   
+   
+ //**********************//**********************//**********************//**********************  
+   
+ //Functions called when daily time specific alarms (above in the loop) triggers:   
+   
+ //***********************************************//**********************//**********************  
+   
+   
+ void ONAlarm() {  
+    
+    
+    
+  /* Tmax = 29;                 // set day time temperatures  
+  setT = 25;  
+  Tmin = 19;  
+  */  
+    
+ }  
+   
+   
+ void ON2Alarm() {  
+   
+   
+   
+  setSyncProvider(RTC.get);     //It's time, sync the Arduino's INTERNAL Clock to the RTC  
+    
+    
+ }  
+   
+   
+ void OFFAlarm() {  
+   
+   
+   
+  /* Tmax = 26;                // set night time temperatures  
+  setT = 23;  
+  Tmin = 19;  
+ */  
+ }  
+   
+   
+   
+ void OFF2Alarm() {  
+   
+   
+   
+  setSyncProvider(RTC.get);     //It's time, sync the Arduino's INTERNAL Clock to the RTC  
+    
+   
+ }  
+   
+   
+   
+   
+ //**********************//**********************//**********************//**********************  
+   
+ //Function for digital clock display (in the SERIAL MONITOR )   
+   
+ //**********************//**********************//**********************//**********************  
+   
+   
+   
+   
+ void digitalClockDisplay() {  // digital clock display of the time 24hr format  
+   
+   
+   
+   
+   
+   
+  Serial.print(hour());  
+   
+  printDigits(minute());  
+   
+  printDigits(second());  
+   
+  Serial.println("");  
+   
+  Serial.println(dayStr(weekday()));  
+   
+  Serial.print(monthStr(month()));  
+   
+  Serial.print(" ");  
+   
+  Serial.print(day());  
+   
+  Serial.print(" ");  
+   
+  Serial.println(year());  
+ }  
+   
+   
+   
+   
+ void printDigits(int digits) {  
+  Serial.print(":");  
+  if (digits < 10)  
+   Serial.print('0');  
+  Serial.print(digits);  
+ }  
+   
+ //***********************************************//**********************//**********************  
+   
+   
+   
+ // Un comment the function below and comment the above only one can be used in the code or change names  
+ // 12hrs display function  
+   
+   
+   
+   
+   
+ /*void digitalClockDisplay()   //// digital clock display of the time 12hr format  
+   
+  {  
+   
+   
+  Serial.print(hourFormat12());  
+   
+   
+  printDigits(minute());  
+   
+  printDigits(second());  
+   
+  Serial.println("");  
+   
+  Serial.println(dayStr(weekday()));  
+   
+  Serial.print(monthStr(month()));  
+   
+  Serial.print(" ");  
+   
+  Serial.print(day());  
+   
+  Serial.print(" ");  
+   
+  Serial.println(year());  
+   
+  //Alarm.delay(1000);  
+   
+  }  
+   
+   
+   
+  void printDigits(int digits)  
+  {  
+   
+  Serial.print(":");  
+   
+   
+  if (digits < 10) {  
+   
+   
+   Serial.print('0');  
+   
+   
+  }  
+   
+   
+  Serial.print(digits);  
+   
+   
+  }  
+ */  
+   
+ //That's all folks taaaaan tantan taan .....taetan taetan taetan tantaaaaaaannnnn    
+   
