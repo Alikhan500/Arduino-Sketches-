@@ -1033,7 +1033,7 @@
    
     }  
    
-    if (t <= Tmax && t >= setT)  
+    if (t <= Tmax && t > setT)  
    
     { u8g.drawFrame(0, 0, 128, 20);  
      u8g.drawStr( 80, 14, "*^^U^^*");  
