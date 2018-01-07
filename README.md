@@ -1,5 +1,12 @@
 # Arduino-Sketches-
 
+##############################################################
+## EVERYTHING IS NOW POSTED ON MY BLOG AND YOUTUBE CHANNEL  ##
+##############################################################
+
+## YouTube.com/CrazyGuyOfficial ##
+## AmkDiyProjects.Blogspot.com  ##
+
 Working Arduino Sketches 2016
 
 
